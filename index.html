@@ -4,17 +4,12 @@
 <meta charset="UTF-8">
 <title>Наложение чата Twitch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --card-bg: rgba(18,18,22,0.72);
-    --text: #F2F0EA;
-    --meta: #B7B4AC;
-    --mod: #FF9F5A;
-    --vip: #B98CFF;
-    --sub: #5AD1B8;
-    --gap: 10px;
-    --font-size: 17px;
+    --text: #FFFFFF;
+    --meta: #D8D6D0;
+    --font-size: 18px;
   }
 
   html, body {
@@ -23,7 +18,7 @@
     background: transparent;
     overflow: hidden;
     height: 100%;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Montserrat', sans-serif;
   }
 
   #chat {
@@ -39,7 +34,7 @@
     justify-content: flex-end;
     align-items: flex-start;
     min-height: 100vh;
-    gap: var(--gap);
+    gap: 7px;
     text-align: left;
   }
 
@@ -47,15 +42,10 @@
     display: flex;
     align-items: flex-start;
     align-self: flex-start;
+    gap: 4px;
     width: 100%;
-    background: var(--card-bg);
-    border-radius: 10px;
-    padding: 8px 12px 9px 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.35);
-    border-left: 4px solid var(--user-color, #999);
-    animation: rise 260ms ease-out;
-    backdrop-filter: blur(2px);
     box-sizing: border-box;
+    animation: rise 260ms ease-out;
     text-align: left;
   }
 
@@ -77,40 +67,45 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 6px;
-    margin-bottom: 2px;
+    gap: 4px;
+    margin-bottom: 1px;
     flex-wrap: wrap;
   }
 
-  .username {
-    font-family: 'Sora', sans-serif;
-    font-weight: 700;
-    font-size: var(--font-size);
-    color: var(--user-color, #ddd);
-    line-height: 1.1;
-    text-align: left;
+  .badge-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.85));
   }
 
-  .badge {
-    font-family: 'Sora', sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    padding: 1px 6px;
-    border-radius: 999px;
-    color: #14151A;
-    line-height: 1.5;
+  .username {
+    font-weight: 800;
+    font-size: var(--font-size);
+    color: var(--user-color, #fff);
+    line-height: 1.15;
+    text-align: left;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.4);
   }
-  .badge.mod { background: var(--mod); }
-  .badge.vip { background: var(--vip); }
-  .badge.sub { background: var(--sub); }
+
+  /* Мод / вип / стример — вместо плашек светятся своим цветом */
+  .msg.role-broadcaster .username,
+  .msg.role-moderator .username,
+  .msg.role-vip .username {
+    text-shadow:
+      0 0 10px var(--user-color),
+      0 0 3px var(--user-color),
+      0 1px 2px rgba(0,0,0,0.9);
+  }
 
   .text {
+    font-weight: 500;
     font-size: var(--font-size);
     color: var(--text);
     line-height: 1.35;
     word-wrap: break-word;
     text-align: left;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.5);
   }
 
   .emote {
@@ -119,15 +114,17 @@
     vertical-align: middle;
     margin: -2px 2px;
     display: inline-block;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
   }
 
   .status {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     color: var(--meta);
     font-size: 13px;
-    padding: 8px 12px;
-    opacity: 0.7;
+    padding: 8px 0;
+    opacity: 0.85;
     text-align: left;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
   }
 </style>
 </head>
@@ -140,17 +137,24 @@
 
 <script>
   // --- Настройки через URL-параметры ---
-  // Пример: overlay.html?channel=egrpk&max=6&fade=25&size=17
+  // Пример: overlay.html?channel=egrpk&max=6&fade=25&size=18
   const params = new URLSearchParams(location.search);
   const CHANNEL = (params.get('channel') || 'egrpk').toLowerCase();
   const MAX_MESSAGES = parseInt(params.get('max')) || 8;
   const FADE_AFTER = parseInt(params.get('fade')) || 20; // секунд до исчезновения, 0 = не исчезает
-  const FONT_SIZE = params.get('size') || '17';
+  const FONT_SIZE = params.get('size') || '18';
 
   document.documentElement.style.setProperty('--font-size', FONT_SIZE + 'px');
 
   const chatEl = document.getElementById('chat');
   const sevenTVMap = {};
+  const badgeMap = {};
+
+  const ROLE_COLORS = {
+    broadcaster: '#FF5C5C',
+    moderator: '#5AD18B',
+    vip: '#C58CFF'
+  };
 
   function escapeHtml(str) {
     const div = document.createElement('div');
@@ -163,6 +167,28 @@
     for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
     const hue = Math.abs(hash) % 360;
     return `hsl(${hue}, 65%, 62%)`;
+  }
+
+  function getRole(tagsBadges) {
+    if (!tagsBadges) return null;
+    if (tagsBadges.broadcaster) return 'broadcaster';
+    if (tagsBadges.moderator) return 'moderator';
+    if (tagsBadges.vip) return 'vip';
+    return null;
+  }
+
+  // Реальные бейджи Twitch (сабскрайбер N месяцев, битсы, турбо, prime и т.д.)
+  function renderBadges(tagsBadges) {
+    if (!tagsBadges) return '';
+    return Object.keys(tagsBadges).map(setId => {
+      const version = tagsBadges[setId];
+      const set = badgeMap[setId];
+      const v = set && set.versions && set.versions[version];
+      if (!v) return '';
+      const url = v.image_url_2x || v.image_url_1x;
+      const title = escapeHtml(v.title || setId);
+      return `<img class="badge-icon" src="${url}" alt="${setId}" title="${title}">`;
+    }).join('');
   }
 
   // Подставляет эмодзи 7TV по словам (текст уже без Twitch-эмодзи на этом этапе)
@@ -206,21 +232,17 @@
   function addMessage(tags, message) {
     const el = document.createElement('div');
     el.className = 'msg';
-    const color = tags.color || hashColor(tags['display-name'] || tags.username);
-    el.style.setProperty('--user-color', color);
 
-    const badges = [];
-    if (tags.badges) {
-      if (tags.badges.broadcaster || tags.badges.moderator) badges.push('<span class="badge mod">MOD</span>');
-      if (tags.badges.vip) badges.push('<span class="badge vip">VIP</span>');
-      if (tags.badges.subscriber) badges.push('<span class="badge sub">SUB</span>');
-    }
+    const role = getRole(tags.badges);
+    const color = role ? ROLE_COLORS[role] : (tags.color || hashColor(tags['display-name'] || tags.username));
+    el.style.setProperty('--user-color', color);
+    if (role) el.classList.add('role-' + role);
 
     el.innerHTML = `
       <div class="msg-body">
         <div class="msg-head">
+          ${renderBadges(tags.badges)}
           <span class="username">${escapeHtml(tags['display-name'] || tags.username)}</span>
-          ${badges.join('')}
         </div>
         <div class="text">${renderMessage(tags, message)}</div>
       </div>
@@ -241,13 +263,10 @@
   }
 
   // Подтягиваем набор эмодзи 7TV этого канала (без OAuth: через публичные API)
-  async function load7TVEmotes(channel) {
+  async function load7TVEmotes(channelId) {
+    if (!channelId) return;
     try {
-      const idResp = await fetch(`https://decapi.me/twitch/id/${channel}`);
-      const id = (await idResp.text()).trim();
-      if (!id || isNaN(Number(id))) return;
-
-      const setResp = await fetch(`https://7tv.io/v3/users/twitch/${id}`);
+      const setResp = await fetch(`https://7tv.io/v3/users/twitch/${channelId}`);
       if (!setResp.ok) return;
       const data = await setResp.json();
       const emotes = (data && data.emote_set && data.emote_set.emotes) || [];
@@ -261,23 +280,60 @@
     }
   }
 
-  load7TVEmotes(CHANNEL);
+  // Глобальные бейджи + бейджи конкретного канала (сабскрайб-тиры, кастомные битсы)
+  async function loadBadges(channelId) {
+    try {
+      const globalResp = await fetch('https://badges.twitch.tv/v1/badges/global/display');
+      const globalData = await globalResp.json();
+      Object.assign(badgeMap, globalData.badge_sets || {});
+    } catch (err) {
+      console.warn('Глобальные бейджи не загрузились:', err);
+    }
 
-  const client = new tmi.Client({
-    channels: [CHANNEL]
-  });
+    if (!channelId) return;
+    try {
+      const channelResp = await fetch(`https://badges.twitch.tv/v1/badges/channel/${channelId}/display`);
+      if (channelResp.ok) {
+        const channelData = await channelResp.json();
+        Object.assign(badgeMap, channelData.badge_sets || {});
+      }
+    } catch (err) {
+      console.warn('Бейджи канала не загрузились:', err);
+    }
+  }
 
-  client.connect().catch(err => {
-    const el = document.createElement('div');
-    el.className = 'status';
-    el.textContent = 'Не удалось подключиться к чату: ' + CHANNEL;
-    chatEl.appendChild(el);
-    console.error(err);
-  });
+  async function resolveChannelId(channel) {
+    try {
+      const idResp = await fetch(`https://decapi.me/twitch/id/${channel}`);
+      const idText = (await idResp.text()).trim();
+      if (idText && !isNaN(Number(idText))) return idText;
+    } catch (err) {
+      console.warn('Не удалось получить ID канала:', err);
+    }
+    return null;
+  }
 
-  client.on('message', (channel, tags, message) => {
-    addMessage(tags, message);
-  });
+  async function init() {
+    const channelId = await resolveChannelId(CHANNEL);
+    load7TVEmotes(channelId);
+    loadBadges(channelId);
+
+    const client = new tmi.Client({ channels: [CHANNEL] });
+
+    client.connect().catch(err => {
+      const el = document.createElement('div');
+      el.className = 'status';
+      el.textContent = 'Не удалось подключиться к чату: ' + CHANNEL;
+      chatEl.appendChild(el);
+      console.error(err);
+    });
+
+    client.on('message', (channel, tags, message) => {
+      addMessage(tags, message);
+    });
+  }
+
+  init();
 </script>
 
 </body>
