@@ -112,8 +112,14 @@
   .badge-icon {
     width: 20px;
     height: 20px;
+    min-width: 20px;
     vertical-align: middle;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.85));
+    overflow: hidden;
+    font-size: 0;
+    line-height: 0;
+    color: transparent;
+    object-fit: contain;
   }
 
   .username {
@@ -122,18 +128,27 @@
     color: var(--user-color, #fff);
     line-height: 1.15;
     text-align: left;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.4);
+    text-shadow:
+      -1.5px -1.5px 0 rgba(0,0,0,0.95),
+       1.5px -1.5px 0 rgba(0,0,0,0.95),
+      -1.5px  1.5px 0 rgba(0,0,0,0.95),
+       1.5px  1.5px 0 rgba(0,0,0,0.95),
+       0 2px 6px rgba(0,0,0,0.9),
+       0 0 12px rgba(0,0,0,0.7);
     animation: glitchColor 420ms linear;
   }
 
-  /* Мод / вип / стример — вместо плашек светятся своим цветом */
+  /* Мод / вип / стример — вместо плашек светятся своим цветом, обводка остаётся для читаемости */
   .msg.role-broadcaster .username,
   .msg.role-moderator .username,
   .msg.role-vip .username {
     text-shadow:
-      0 0 10px var(--user-color),
-      0 0 3px var(--user-color),
-      0 1px 2px rgba(0,0,0,0.9);
+      -1.5px -1.5px 0 rgba(0,0,0,0.95),
+       1.5px -1.5px 0 rgba(0,0,0,0.95),
+      -1.5px  1.5px 0 rgba(0,0,0,0.95),
+       1.5px  1.5px 0 rgba(0,0,0,0.95),
+       0 0 12px var(--user-color),
+       0 0 5px var(--user-color);
   }
 
   .text {
@@ -143,7 +158,13 @@
     line-height: 1.35;
     word-wrap: break-word;
     text-align: left;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.5);
+    text-shadow:
+      -1.5px -1.5px 0 rgba(0,0,0,0.95),
+       1.5px -1.5px 0 rgba(0,0,0,0.95),
+      -1.5px  1.5px 0 rgba(0,0,0,0.95),
+       1.5px  1.5px 0 rgba(0,0,0,0.95),
+       0 2px 6px rgba(0,0,0,0.85),
+       0 0 10px rgba(0,0,0,0.6);
     animation: glitchColor 420ms linear;
   }
 
@@ -237,7 +258,7 @@
       if (!v) return '';
       const url = v.image_url_2x || v.image_url_1x;
       const title = escapeHtml(v.title || setId);
-      return `<img class="badge-icon" src="${url}" alt="${setId}" title="${title}">`;
+      return `<img class="badge-icon" src="${url}" alt="" title="${title}" onerror="this.remove()">`;
     }).join('');
   }
 
@@ -344,7 +365,7 @@
 
     if (!channelId) return;
     try {
-      const channelResp = await fetch(`https://badges.twitch.tv/v1/badges/channel/${channelId}/display`);
+      const channelResp = await fetch(`https://badges.twitch.tv/v1/badges/channels/${channelId}/display`);
       if (channelResp.ok) {
         const channelData = await channelResp.json();
         Object.assign(badgeMap, channelData.badge_sets || {});
