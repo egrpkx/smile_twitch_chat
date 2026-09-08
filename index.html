@@ -10,6 +10,8 @@
     --text: #FFFFFF;
     --meta: #D8D6D0;
     --font-size: 18px;
+    --glitch-a: #FF2E6C;
+    --glitch-b: #2EE6FF;
   }
 
   html, body {
@@ -45,17 +47,52 @@
     gap: 4px;
     width: 100%;
     box-sizing: border-box;
-    animation: rise 260ms ease-out;
     text-align: left;
+    animation: glitchIn 420ms linear both;
   }
 
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
+  @keyframes glitchIn {
+    0% {
+      opacity: 0;
+      transform: translate(-9px, 0) scaleY(1.5);
+      clip-path: inset(8% 0 72% 0);
+      filter: brightness(2.2) contrast(1.6);
+    }
+    8% {
+      opacity: 1;
+      transform: translate(7px, 0) scaleY(0.75);
+      clip-path: inset(62% 0 4% 0);
+    }
+    16% {
+      transform: translate(-6px, 0) scaleY(1.15);
+      clip-path: inset(0 0 42% 0);
+    }
+    24% {
+      transform: translate(5px, 0) scaleY(0.95);
+      clip-path: inset(32% 0 0 0);
+      filter: brightness(1.5) contrast(1.3);
+    }
+    34% {
+      transform: translate(-3px, 0);
+      clip-path: inset(0 0 16% 0);
+    }
+    46% {
+      transform: translate(3px, 0);
+      clip-path: inset(0);
+      filter: brightness(1.1);
+    }
+    60% { transform: translate(-1.5px, 0); filter: none; }
+    75% { transform: translate(1.5px, 0); }
+    100% {
+      opacity: 1;
+      transform: translate(0, 0) scaleY(1);
+      clip-path: inset(0);
+      filter: none;
+    }
   }
 
   .msg.fading {
-    animation: fadeout 600ms ease forwards;
+    animation: fadeout 500ms ease forwards;
   }
   @keyframes fadeout {
     to { opacity: 0; transform: translateY(-6px); }
@@ -86,6 +123,7 @@
     line-height: 1.15;
     text-align: left;
     text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 6px rgba(0,0,0,0.4);
+    animation: glitchColor 420ms linear both;
   }
 
   /* Мод / вип / стример — вместо плашек светятся своим цветом */
@@ -106,6 +144,17 @@
     word-wrap: break-word;
     text-align: left;
     text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.5);
+    animation: glitchColor 420ms linear both;
+  }
+
+  @keyframes glitchColor {
+    0%   { text-shadow: -3px 0 var(--glitch-a), 3px 0 var(--glitch-b); }
+    15%  { text-shadow: 3px 0 var(--glitch-a), -3px 0 var(--glitch-b); }
+    30%  { text-shadow: -2px 0 var(--glitch-a), 2px 0 var(--glitch-b); }
+    45%  { text-shadow: 2px 0 var(--glitch-a), -2px 0 var(--glitch-b); }
+    62%  { text-shadow: -1px 0 var(--glitch-a), 1px 0 var(--glitch-b); }
+    80%  { text-shadow: 1px 0 rgba(255,46,108,0.4), -1px 0 rgba(46,230,255,0.4); }
+    100% { text-shadow: 0 0 transparent; }
   }
 
   .emote {
@@ -137,11 +186,12 @@
 
 <script>
   // --- Настройки через URL-параметры ---
-  // Пример: overlay.html?channel=egrpk&max=6&fade=25&size=18
+  // Пример: overlay.html?channel=egrpk&max=60&size=18
   const params = new URLSearchParams(location.search);
   const CHANNEL = (params.get('channel') || 'egrpk').toLowerCase();
-  const MAX_MESSAGES = parseInt(params.get('max')) || 8;
-  const FADE_AFTER = parseInt(params.get('fade')) || 20; // секунд до исчезновения, 0 = не исчезает
+  // Сообщения больше не исчезают по таймеру. MAX — это просто предохранитель,
+  // чтобы за долгий стрим DOM не рос бесконечно (значение с запасом, выше видимой области).
+  const MAX_MESSAGES = parseInt(params.get('max')) || 60;
   const FONT_SIZE = params.get('size') || '18';
 
   document.documentElement.style.setProperty('--font-size', FONT_SIZE + 'px');
@@ -229,6 +279,18 @@
     return html;
   }
 
+  // Убирает самые старые сообщения только когда их накопилось намного больше,
+  // чем вообще может быть видно на экране — это не "исчезновение", а уборка за кулисами.
+  function trimOverflow() {
+    const excess = chatEl.children.length - MAX_MESSAGES;
+    for (let i = 0; i < excess; i++) {
+      const oldest = chatEl.children[i];
+      if (!oldest || oldest.classList.contains('fading')) continue;
+      oldest.classList.add('fading');
+      setTimeout(() => oldest.remove(), 500);
+    }
+  }
+
   function addMessage(tags, message) {
     const el = document.createElement('div');
     el.className = 'msg';
@@ -249,17 +311,7 @@
     `;
 
     chatEl.appendChild(el);
-
-    while (chatEl.children.length > MAX_MESSAGES) {
-      chatEl.removeChild(chatEl.firstChild);
-    }
-
-    if (FADE_AFTER > 0) {
-      setTimeout(() => {
-        el.classList.add('fading');
-        setTimeout(() => el.remove(), 650);
-      }, FADE_AFTER * 1000);
-    }
+    trimOverflow();
   }
 
   // Подтягиваем набор эмодзи 7TV этого канала (без OAuth: через публичные API)
